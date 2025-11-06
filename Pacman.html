@@ -1,0 +1,1773 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title>Pacboy</title>
+	<meta charset="utf-8">
+	<style type="text/css">
+		body {
+			margin:0px;
+			background-color:black;
+		}
+		#canvas1 {
+			margin:10px 0px 0px 0px;
+			background-color:
+		}
+		#divboks1 {
+			width:395px;
+			height:820px;
+			text-align:center;
+			float:right;
+		}
+		#divboks2 {
+			width:395px;
+			height:820px;
+			text-align:center;
+			float:left;
+		}
+		#tekst1 {
+			color:white;
+			font-size:45px;
+			font-family:fantasy;
+			margin-top:32px;
+		}
+		#tekst2 {
+			color:white;
+			font-size:45px;
+			font-family:fantasy;
+			margin-top:32px;
+		}
+
+		#tekst3 {
+			color:white;
+			font-size:45px;
+			font-family:fantasy;
+			margin-top:630px;
+		}
+		#canvas2 {
+			margin:465px 0px 0px 0px;
+		}
+	</style>
+</head>
+<body>
+	<audio id="audio1" src="Ghost.mp3"></audio>
+	<audio id="audio2" src="Death.mp3"></audio>
+	<audio id="audio3" src="Intro.mp3"></audio>
+	<audio id="audio4" src="Chomp.mp3"></audio>
+	<audio id="audio5" src="Intermission.wav" loop></audio>
+	<div id="divboks2">
+		<p id="tekst1">Points: 0</p>
+		<p id="tekst3">Stage 1</p>
+	</div>
+	<canvas id="canvas1"></canvas>
+	<div id="divboks1">
+		<p id="tekst2">00:00:00</p>
+		<canvas id="canvas2" width="395" height="200"></canvas>
+	</div>
+	<script type="text/javascript">
+
+		/* Her ligger alle globale variabler som er brukt. Har 2 canvaser, en for selve spillet og en for livene til pacman somligger i høyre gjørne. Justerer også all lyden slik at lyden ikke er for høy og endrer hastigheten på noe av lyden for å få det til å passe bedre. Alle lengder som ses på spillet, både pacman, ghosts, pellets, og poeng avhenger banens høyde. Så du kan for eksempel justere høyden til 400 (alle høyder fungere ikke fordi desimaler kan bli altfor små og kan føre til at pacman går gjennom vegger) og spillet vil fremdeles fungere. */
+
+		var audio1 = document.getElementById('audio1');
+		var audio2 = document.getElementById('audio2');
+		var audio3 = document.getElementById('audio3');
+		var audio4 = document.getElementById('audio4');
+		var audio5 = document.getElementById('audio5');
+		var tekst1 = document.getElementById('tekst1');
+		var tekst2 = document.getElementById('tekst2');
+		var tekst3 = document.getElementById('tekst3');
+		var canvas1 = document.getElementById('canvas1');
+		var canvas2 = document.getElementById('canvas2');
+		var ctx = canvas1.getContext('2d');
+		var ctx2 = canvas2.getContext('2d');
+
+		audio1.volume = 0.15;
+		audio2.volume = 0.15;
+		audio3.volume = 0.15;
+		audio4.volume = 0.15;
+		audio5.volume = 0.05;
+		audio5.playbackRate = 0.8;
+		canvas1.height = '800';
+		canvas1.width = canvas1.height*0.8125;
+
+		var width = canvas1.width;
+		var height = canvas1.height;
+		var enhet = width/26;
+
+		var radius = enhet*0.75;
+		var pacRadius = radius;
+		var tall1;
+		var tall2;
+		var tall3 = 0;
+		var tall4;
+		var tall5;
+		var tall6 = 0;
+		var tall7 = 0;
+		var lives = 3;
+		var stage = 0;
+
+		var check = true;
+		var lowerPacMouth1 = 0;
+		var lowerPacMouth2 = 2;
+		var upperPacMouth1 = 0;
+		var upperPacMouth2 = 2;
+
+		var sekund = 0;
+		var minutt = 0;
+		var time = 0;
+		var tidPoeng = 1000;
+
+		var ghostKills = 0;
+
+		/* Objektene kalt stage er objekter som innholder all informasjonen som trengs for at funskjoner videre i koden skal kunne lage en bane som pacman og spøkelsene kan spille i. For å lage en ny bane kan du kopiere et av objektene, kalle det for eksempel stage4 endre det som er nødvendig for å lage en unik bane også til slutt putte det i stageArrayen. Banene i stageArrayen går i stigende rekkelølge så du kan endre på rekkefølgen pacman må spille gjennom banene. Du kan også bare ta stage = 2 hvis du foreksempel vil spille bane nummer 3 uten å spille de forrige banene. */
+
+		var stage1 = {
+			map:   
+			[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+			 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+			 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+			 1,1,0,0,1,0,0,1,1,1,1,1,0,0,1,1,1,1,1,0,0,1,0,0,1,1,
+			 3,1,0,0,1,4,4,0,0,0,1,1,0,0,1,1,0,0,0,4,4,1,0,0,1,3,
+			 3,1,0,0,1,4,4,0,0,0,0,0,0,0,0,0,0,0,0,4,4,1,0,0,1,3,
+			 3,1,0,0,1,0,0,1,0,0,0,0,0,0,0,0,0,0,1,0,0,1,0,0,1,3,
+			 1,1,0,0,1,0,0,1,1,1,1,1,0,0,1,1,1,1,1,0,0,1,0,0,1,1,
+			 1,0,0,0,1,0,0,0,0,0,0,1,0,0,1,0,0,0,0,0,0,1,0,0,0,1,
+			 1,0,0,0,1,0,0,0,0,0,0,1,0,0,1,0,0,0,0,0,0,1,0,0,0,1,
+			 1,0,0,1,1,1,1,1,1,0,0,1,0,0,1,0,0,1,1,1,1,1,1,0,0,1,
+			 1,0,0,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,0,0,1,
+			 1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,
+			 1,0,0,0,0,0,0,0,1,0,0,1,0,0,1,0,0,1,0,0,0,0,0,0,0,1,
+			 1,0,0,1,1,1,0,0,1,0,0,1,0,0,1,0,0,1,0,0,1,1,1,0,0,1,
+			 1,0,0,0,0,0,0,0,1,0,0,1,0,0,1,0,0,1,0,0,0,0,0,0,0,1,
+			 1,0,0,0,0,0,0,0,1,0,0,0,5,5,0,0,0,1,0,0,0,0,0,0,0,1,
+			 1,1,0,0,1,1,1,1,1,0,0,0,5,5,0,0,0,1,1,1,1,1,0,0,1,1,
+			 1,1,0,0,0,0,0,1,1,0,0,1,0,0,1,0,0,1,1,0,0,0,0,0,1,1,
+			 1,0,0,0,0,0,0,0,0,0,0,1,0,0,1,0,0,0,0,0,0,0,0,0,0,1,
+			 1,0,0,0,1,0,0,0,0,0,0,1,0,0,1,0,0,0,0,0,0,1,0,0,0,1,
+			 1,0,0,1,1,1,1,1,1,0,0,1,0,0,1,0,0,1,1,1,1,1,1,0,0,1,
+			 1,0,0,0,0,0,0,1,0,0,0,1,0,0,1,0,0,0,1,0,0,0,0,0,0,1,
+			 1,0,0,0,0,0,0,0,0,0,0,1,0,0,1,0,0,0,0,0,0,0,0,0,0,1,
+			 1,1,0,0,1,0,0,0,0,0,1,1,0,0,1,1,0,0,0,0,0,1,0,0,1,1,
+			 3,1,0,0,1,1,1,1,0,0,1,1,0,0,1,1,0,0,1,1,1,1,0,0,1,3,
+			 3,1,0,0,0,4,4,1,0,0,0,0,0,0,0,0,0,0,1,4,4,0,0,0,1,3,
+			 3,1,0,0,0,4,4,1,0,0,0,0,0,0,0,0,0,0,1,4,4,0,0,0,1,3,
+			 1,1,0,0,1,0,0,1,0,0,1,1,2,2,1,1,0,0,1,0,0,1,0,0,1,1,
+			 0,0,0,0,0,0,0,0,0,0,1,3,3,3,3,1,0,0,0,0,0,0,0,0,0,0,
+			 0,0,0,0,0,0,0,0,0,0,1,3,3,3,3,1,0,0,0,0,0,0,0,0,0,0,
+			 1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,],
+			pointX:[],
+		 	pointY:[],
+			pelletX:[],
+			pelletY:[],
+			cordinateX:[],
+			cordinateY:[],
+			turnType:[],
+			bakgrunnX:[],
+			bakgrunnY:[],
+			color:'blue',
+			ghostFenceX:enhet*24,
+			ghostFenceY:enhet*58,
+			startPositionX1:enhet*26,
+			startPositionY1:enhet*60,
+			startPositionX2:enhet*26,
+			startPositionY2:enhet*60,
+			startPositionX3:enhet*26,
+			startPositionY3:enhet*34,
+			startPositionX4:enhet*26,
+			startPositionY4:enhet*34,
+		};
+
+		var stage2 = {
+			map:
+			[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+			 1,4,4,0,0,0,0,0,0,0,0,0,1,1,0,0,0,0,0,0,0,0,0,4,4,1,
+			 1,4,4,0,0,0,0,0,0,0,0,0,1,1,0,0,0,0,0,0,0,0,0,4,4,1,
+			 1,0,0,1,1,0,0,1,1,1,0,0,1,1,0,0,1,1,1,0,0,1,1,0,0,1,
+			 1,0,0,1,1,0,0,1,1,1,0,0,1,1,0,0,1,1,1,0,0,1,1,0,0,1,
+			 1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,
+			 1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,
+			 1,0,0,1,1,0,0,1,0,0,1,1,1,1,1,1,0,0,1,0,0,1,1,0,0,1,
+			 1,0,0,0,0,0,0,1,0,0,0,0,1,1,0,0,0,0,1,0,0,0,0,0,0,1,
+			 1,0,0,0,0,0,0,1,0,0,0,0,1,1,0,0,0,0,1,0,0,0,0,0,0,1,
+			 1,1,1,1,1,0,0,1,1,1,0,0,1,1,0,0,1,1,1,0,0,1,1,1,1,1,
+			 3,3,3,3,1,0,0,1,0,0,0,0,0,0,0,0,0,0,1,0,0,1,3,3,3,3,
+			 3,3,3,3,1,0,0,1,0,0,0,0,0,0,0,0,0,0,1,0,0,1,3,3,3,3,
+			 1,1,1,1,1,0,0,1,0,0,1,1,2,2,1,1,0,0,1,0,0,1,1,1,1,1,
+			 0,0,0,0,0,0,0,0,0,0,1,3,3,3,3,1,0,0,0,0,0,0,0,0,0,0,
+			 0,0,0,0,0,0,0,0,0,0,1,3,3,3,3,1,0,0,0,0,0,0,0,0,0,0,
+			 1,1,1,1,1,0,0,1,0,0,1,1,1,1,1,1,0,0,1,0,0,1,1,1,1,1,
+			 3,3,3,3,1,0,0,1,0,0,0,0,4,4,0,0,0,0,1,0,0,1,3,3,3,3,
+			 3,3,3,3,1,0,0,1,0,0,0,0,4,4,0,0,0,0,1,0,0,1,3,3,3,3,
+			 1,1,1,1,1,0,0,1,0,0,1,1,1,1,1,1,0,0,1,0,0,1,1,1,1,1,
+			 1,0,0,0,0,0,0,0,0,0,0,0,1,1,0,0,0,0,0,0,0,0,0,0,0,1,
+			 1,0,0,0,0,0,0,0,0,0,0,0,1,1,0,0,0,0,0,0,0,0,0,0,0,1,
+			 1,0,0,1,1,0,0,1,1,1,0,0,1,1,0,0,1,1,1,0,0,1,1,0,0,1,
+			 1,0,0,0,1,0,0,0,0,0,0,0,5,5,0,0,0,0,0,0,0,1,0,0,0,1,
+			 1,0,0,0,1,0,0,0,0,0,0,0,5,5,0,0,0,0,0,0,0,1,0,0,0,1,
+			 1,1,0,0,1,0,0,1,0,0,1,1,1,1,1,1,0,0,1,0,0,1,0,0,1,1,
+			 1,0,0,0,0,0,0,1,0,0,0,0,1,1,0,0,0,0,1,0,0,0,0,0,0,1,
+			 1,0,0,0,0,0,0,1,0,0,0,0,1,1,0,0,0,0,1,0,0,0,0,0,0,1,
+			 1,0,0,1,1,1,1,1,1,1,0,0,1,1,0,0,1,1,1,1,1,1,1,0,0,1,
+			 1,4,4,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,4,4,1,
+			 1,4,4,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,4,4,1,
+			 1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,],
+			pointX:[],
+		 	pointY:[],
+			pelletX:[],
+			pelletY:[],
+			cordinateX:[],
+			cordinateY:[],
+			turnType:[],
+			bakgrunnX:[],
+			bakgrunnY:[],
+			color:'green',
+			ghostFenceX:enhet*24,
+			ghostFenceY:enhet*28,
+			startPositionX1:enhet*26,
+			startPositionY1:enhet*30,
+			startPositionX2:enhet*26,
+			startPositionY2:enhet*30,
+			startPositionX3:enhet*26,
+			startPositionY3:enhet*48,
+			startPositionX4:enhet*26,
+			startPositionY4:enhet*48,
+		};
+
+		var stage3 = {
+			map:   
+			[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+			 0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,
+			 0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,
+			 1,1,1,1,1,0,0,1,0,0,1,1,1,1,1,1,0,0,1,0,0,1,1,1,1,1,
+			 1,0,0,0,0,4,4,0,0,0,0,0,1,1,0,0,0,0,0,4,4,0,0,0,0,1,
+			 1,0,0,0,0,4,4,0,0,0,0,0,1,1,0,0,0,0,0,4,4,0,0,0,0,1,
+			 1,0,0,1,1,1,1,0,0,1,0,0,1,1,0,0,1,0,0,1,1,1,1,0,0,1,
+			 1,0,0,1,0,0,0,0,0,1,0,0,0,0,0,0,1,0,0,0,0,0,1,0,0,1,
+			 1,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,1,
+			 1,0,0,0,0,0,1,0,0,1,1,1,1,1,1,1,1,0,0,1,0,0,0,0,0,1,
+			 1,1,1,1,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,1,1,1,1,
+			 1,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,1,
+			 1,0,0,0,0,0,1,1,0,0,1,1,2,2,1,1,0,0,1,1,0,0,0,0,0,1,
+			 1,0,0,1,0,0,0,0,0,0,1,3,3,3,3,1,0,0,0,0,0,0,1,0,0,1,
+			 1,0,0,1,0,0,0,0,0,0,1,3,3,3,3,1,0,0,0,0,0,0,1,0,0,1,
+			 1,0,0,1,0,0,1,1,0,0,1,1,1,1,1,1,0,0,1,1,0,0,1,0,0,1,
+			 1,0,0,1,0,0,0,1,0,0,0,0,4,4,0,0,0,0,1,0,0,0,1,0,0,1,
+			 1,0,0,1,0,0,0,1,0,0,0,0,4,4,0,0,0,0,1,0,0,0,1,0,0,1,
+			 1,0,0,1,1,0,0,1,1,0,0,1,1,1,1,0,0,1,1,0,0,1,1,0,0,1,
+			 1,0,0,0,0,0,0,0,0,0,0,1,1,1,1,0,0,0,0,0,0,0,0,0,0,1,
+			 1,0,0,0,0,0,0,0,0,0,0,0,5,5,0,0,0,0,0,0,0,0,0,0,0,1,
+			 1,1,1,1,0,0,1,1,1,0,0,0,5,5,0,0,0,1,1,1,0,0,1,1,1,1,
+			 3,3,3,1,0,0,1,1,1,0,0,1,1,1,1,0,0,1,1,1,0,0,1,3,3,3,
+			 3,3,3,1,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,1,3,3,3,
+			 3,3,3,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,3,3,3,
+			 1,1,1,1,0,0,0,0,0,1,1,1,1,1,1,1,1,0,0,0,0,0,1,1,1,1,
+			 0,0,0,0,0,0,1,4,4,0,0,0,1,1,0,0,0,4,4,1,0,0,0,0,0,0,
+			 0,0,0,0,0,0,1,4,4,0,0,0,1,1,0,0,0,4,4,1,0,0,0,0,0,0,
+			 1,0,0,1,1,1,1,0,0,1,0,0,1,1,0,0,1,0,0,1,1,1,1,0,0,1,
+			 1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,
+			 1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,
+			 1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,],
+			pointX:[],
+		 	pointY:[],
+			pelletX:[],
+			pelletY:[],
+			cordinateX:[],
+			cordinateY:[],
+			turnType:[],
+			bakgrunnX:[],
+			bakgrunnY:[],
+			color:'purple',
+			ghostFenceX:enhet*24,
+			ghostFenceY:enhet*26,
+			startPositionX1:enhet*26,
+			startPositionY1:enhet*28,
+			startPositionX2:enhet*26,
+			startPositionY2:enhet*28,
+			startPositionX3:enhet*26,
+			startPositionY3:enhet*42,
+			startPositionX4:enhet*26,
+			startPositionY4:enhet*42,
+		};
+
+		var stageArray = [stage1,stage2,stage3];
+
+		/* Du ser nok at Arrayene som trengs for at banen skal fungere er helt tomme. Denne funksjonen tar inn alle arrayene som parametere og setter inn riktige verdier bassert på mappet som er laget av 0-er og 1-ere (og noen andre tall). */
+
+		function mapGenerator(map,pointX,pointY,pelletX,pelletY,cordinateX,cordinateY,turnType,bakgrunnX,bakgrunnY) {
+			var tomRom = [0,3,4,5];
+			for (i = 1; i < map.length; i++) {
+				if (map[i] == 1) {
+					bakgrunnX.push((i % 26)*2*enhet);
+					bakgrunnY.push(Math.floor(i/26)*2*enhet);
+				}
+				if (map[i] == 0 && map[i+1] == 0 && map[i+26] == 0 && map[i+27] == 0 ) {
+					pointX.push((i % 26 + 1)*2*enhet);
+					pointY.push(Math.floor(i/26+1)*2*enhet);
+				}
+				if (map[i] == 0 && map[i+26] == 0 && i % 26 == 0) {
+					pointX.push((i % 26)*2*enhet);
+					pointY.push(Math.floor(i/26 + 1)*2*enhet);
+					pointX.push((i % 26 + 26)*2*enhet);
+					pointY.push(Math.floor(i/26 + 1)*2*enhet);
+				}
+				if (map[i] == 4 && map[i+1] == 4 && map[i+26] == 4 && map[i+27] == 4 ) {
+					pelletX.push((i % 26 + 1)*2*enhet);
+					pelletY.push(Math.floor(i/26+1)*2*enhet);
+					if (map[i - 1] == 0 && map[i + 25] == 0) {
+						pointX.push((i % 26)*2*enhet);
+						pointY.push(Math.floor(i/26+1)*2*enhet);
+					}
+					if (map[i + 2] == 0 && map[i + 28] == 0) {
+						pointX.push((i % 26 + 2)*2*enhet);
+						pointY.push(Math.floor(i/26+1)*2*enhet);
+					}
+					if (map[i + 52] == 0 && map[i + 53] == 0) {
+						pointX.push((i % 26 + 1)*2*enhet);
+						pointY.push(Math.floor(i/26+2)*2*enhet);
+					}
+					if (map[i - 26] == 0 && map[i - 25] == 0) {
+						pointX.push((i % 26 + 1)*2*enhet);
+						pointY.push(Math.floor(i/26)*2*enhet);
+					}
+				}
+				if (map[i-27] == 1 && map[i-24] == 1 && map[i+51] == 1 && map[i+54] == 1 && tomRom.includes(map[i-1]) && tomRom.includes(map[i+25]) && tomRom.includes(map[i+2]) && tomRom.includes(map[i+28]) && tomRom.includes(map[i+52]) && tomRom.includes(map[i+53]) && tomRom.includes(map[i-26]) && tomRom.includes(map[i-25])) {
+					cordinateX.push((i % 26 + 1)*2*enhet);
+					cordinateY.push(Math.floor(i/26+1)*2*enhet);
+					turnType.push(6);
+				}
+				else if (map[i-24] == 1 && map[i+54] == 1 && tomRom.includes(map[i+2]) && tomRom.includes(map[i+28]) && tomRom.includes(map[i+52]) && tomRom.includes(map[i+53]) && tomRom.includes(map[i-26]) && tomRom.includes(map[i-25])) {
+					if (map[i+25] == 1) {
+						cordinateX.push((i % 26 + 1)*2*enhet);
+						cordinateY.push(Math.floor(i/26+1)*2*enhet);
+						turnType.push(2);
+					}
+					else if (map[i-1] == 1) {
+						cordinateX.push((i % 26 + 1)*2*enhet);
+						cordinateY.push(Math.floor(i/26+1)*2*enhet);
+						turnType.push(2);
+					}
+				}
+				else if (map[i-27] == 1 && map[i+51] == 1 && tomRom.includes(map[i-1]) && tomRom.includes(map[i+25]) && tomRom.includes(map[i+52]) && tomRom.includes(map[i+53]) && tomRom.includes(map[i-26]) && tomRom.includes(map[i-25])) {
+					if (map[i+28] == 1) {
+						cordinateX.push((i % 26 + 1)*2*enhet);
+						cordinateY.push(Math.floor(i/26+1)*2*enhet);
+						turnType.push(4);
+					}
+					else if (map[i+2] == 1) {
+						cordinateX.push((i % 26 + 1)*2*enhet);
+						cordinateY.push(Math.floor(i/26+1)*2*enhet);
+						turnType.push(4);
+					}
+				}
+				else if (map[i+51] == 1 && map[i+54] == 1 && tomRom.includes(map[i-1]) && tomRom.includes(map[i+25]) && tomRom.includes(map[i+52]) && tomRom.includes(map[i+53]) && tomRom.includes(map[i+2]) && tomRom.includes(map[i+28])) {
+					if (map[i-25] == 1) {
+						cordinateX.push((i % 26 + 1)*2*enhet);
+						cordinateY.push(Math.floor(i/26+1)*2*enhet);
+						turnType.push(1);
+					}
+					else if (map[i-26] == 1) {
+						cordinateX.push((i % 26 + 1)*2*enhet);
+						cordinateY.push(Math.floor(i/26+1)*2*enhet);
+						turnType.push(1);
+					}
+				}
+				else if (map[i-27] == 1 && map[i-24] == 1 && tomRom.includes(map[i-1]) && tomRom.includes(map[i+25]) && tomRom.includes(map[i-25]) && tomRom.includes(map[i-26]) && tomRom.includes(map[i+2]) && tomRom.includes(map[i+28])) {
+					if (map[i+52] == 1 || map[i+52] == 2) {
+						cordinateX.push((i % 26 + 1)*2*enhet);
+						cordinateY.push(Math.floor(i/26+1)*2*enhet);
+						turnType.push(9);
+					}
+					else if (map[i+53] == 1 || map[i+53] == 2) {
+						cordinateX.push((i % 26 + 1)*2*enhet);
+						cordinateY.push(Math.floor(i/26+1)*2*enhet);
+						turnType.push(9);
+					}
+				}
+				else if (map[i-27] == 1 && map[i+54] == 1 && tomRom.includes(map[i-1]) && tomRom.includes(map[i+25]) && tomRom.includes(map[i-25]) && tomRom.includes(map[i-26])) {
+					if (map[i+52] == 1 && map[i+2] == 1 || map[i+52] == 1 && map[i+28] == 1) {
+						cordinateX.push((i % 26 + 1)*2*enhet);
+						cordinateY.push(Math.floor(i/26+1)*2*enhet);
+						turnType.push(8);
+					}
+					else if (map[i+53] == 1 && map[i+2] == 1 || map[i+53] == 1 && map[i+28] == 1) {
+						cordinateX.push((i % 26 + 1)*2*enhet);
+						cordinateY.push(Math.floor(i/26+1)*2*enhet);
+						turnType.push(8);
+					}
+				}
+				else if (map[i-24] == 1 && map[i+51] == 1 && tomRom.includes(map[i+2]) && tomRom.includes(map[i+28]) && tomRom.includes(map[i-25]) && tomRom.includes(map[i-26])) {
+					if (map[i+52] == 1 && map[i-1] == 1 || map[i+52] == 1 && map[i+25] == 1) {
+						cordinateX.push((i % 26 + 1)*2*enhet);
+						cordinateY.push(Math.floor(i/26+1)*2*enhet);
+						turnType.push(7);
+					}
+					else if (map[i+53] == 1 && map[i-1] == 1 || map[i+53] == 1 && map[i+25] == 1) {
+						cordinateX.push((i % 26 + 1)*2*enhet);
+						cordinateY.push(Math.floor(i/26+1)*2*enhet);
+						turnType.push(7);
+					}
+				}
+				else if (map[i-24] == 1 && map[i+51] == 1 && tomRom.includes(map[i-1]) && tomRom.includes(map[i+25]) && tomRom.includes(map[i+52]) && tomRom.includes(map[i+53])) {
+					if (map[i-26] == 1 && map[i+2] == 1 || map[i+52] == 1 && map[i+28] == 1) {
+						cordinateX.push((i % 26 + 1)*2*enhet);
+						cordinateY.push(Math.floor(i/26+1)*2*enhet);
+						turnType.push(3);
+					}
+					else if (map[i-25] == 1 && map[i+2] == 1 || map[i+53] == 1 && map[i+28] == 1) {
+						cordinateX.push((i % 26 + 1)*2*enhet);
+						cordinateY.push(Math.floor(i/26+1)*2*enhet);
+						turnType.push(3);
+					}
+				}
+				else if (map[i-27] == 1 && map[i+54] == 1 && tomRom.includes(map[i+2]) && tomRom.includes(map[i+28]) && tomRom.includes(map[i+52]) && tomRom.includes(map[i+53])) {
+					if (map[i-26] == 1 && map[i-1] == 1 || map[i+52] == 1 && map[i+25] == 1) {
+						cordinateX.push((i % 26 + 1)*2*enhet);
+						cordinateY.push(Math.floor(i/26+1)*2*enhet);
+						turnType.push(5);
+					}
+					else if (map[i-25] == 1 && map[i-1] == 1 || map[i+53] == 1 && map[i+25] == 1) {
+						cordinateX.push((i % 26 + 1)*2*enhet);
+						cordinateY.push(Math.floor(i/26+1)*2*enhet);
+						turnType.push(5);
+					}
+				}
+				else if (map[i-26] == 1 && map[i-25] == 1 && map[i+52] == 2 && map[i+53] == 2 || map[i] == 5 && map[i+1] == 5 && map[i+26] == 5 && map [i+27] == 5) {
+					cordinateX.push((i % 26 + 1)*2*enhet);
+					cordinateY.push(Math.floor(i/26+1)*2*enhet);
+					turnType.push(10);
+				}
+			}
+		}
+
+		/* Denne funskjonen tegner banen bassert på bakgrunnX og bakgrunnY som bestemmers for hvert enkelt map av mapGenerator. */
+
+		function backgrounds(bakgrunnX,bakgrunnY,color,fenceX,fenceY) {
+			if (tall7 == 0 && tall1 >= 0) {
+				audio3.play();
+			}
+			if (tall1 >= 0) {
+				tall7++;
+			}
+			if (stage < bakgrunnX.length) {
+				ctx.fillStyle = 'black';
+				ctx.fillRect(0,0,enhet*52,enhet*64)
+				for (i = 0; i < bakgrunnX.length; i++) {
+					ctx.fillStyle = color;
+					ctx.fillRect(0,0,enhet,enhet);
+					ctx.fillRect(bakgrunnX[i]/2,bakgrunnY[i]/2,enhet,enhet);
+				}
+				ctx.fillStyle = 'pink';
+				ctx.fillRect(fenceX/2,fenceY/2-enhet*0.6,enhet*2,enhet*0.2);
+			}
+			if (audio4.currentTime > 0.09) {
+				audio4.currentTime = 0;
+				audio4.pause();
+			}
+			tekst3.innerHTML = 'Stage ' + (stage + 1);
+		}
+
+		/* Denne funskjonen tegner inn alle poengene som ligger på banen basert på pointX og pointY for hver bane bestemt av mapGenerator. Funksjonen lager i tillegg en lyd effekt og gjør at pacman går til neste level ved å ta alle poengene. */
+
+		function points(xPoint,yPoint) {
+			for (i = 0; i < xPoint.length; i++) {
+				if (x + enhet == xPoint[i] && y == yPoint[i] || x - enhet == xPoint[i] && y == yPoint[i] || x == xPoint[i] && y + enhet == yPoint[i] || x == xPoint[i] && y - enhet == yPoint[i]) {
+					xPoint.splice(i,1);
+					yPoint.splice(i,1);
+					tall3 += 10;
+					tekst1.innerHTML = 'Points: ' + (tall3 + ghostKills);
+					audio4.play();
+				}
+				ctx.fillStyle = 'pink';
+				ctx.beginPath();
+				ctx.arc(xPoint[i]/2,yPoint[i]/2,radius*0.1,0*Math.PI,2*Math.PI)
+				ctx.fill();
+			}
+			if (xPoint.length == 0 && xPoint.length == 0) {
+				for (i = 0; i < objects.length; i++) {
+					objects[i].direction = 0;
+					pacRadius -= enhet/800;
+					tall1 = NaN;
+					tall4 = 0;
+				}
+				if (pacRadius < 0) {
+					stage += 1;
+					if (stage < stageArray.length) {
+						x = stageArray[stage].startPositionX3;
+						y = stageArray[stage].startPositionY3;
+					}
+					tall5 = null;
+					tall2 = null;
+					lowerPacMouth1 = 0;
+					lowerPacMouth2 = 2;
+					upperPacMouth1 = 0;
+			 		upperPacMouth2 = 2;
+			 		pacRadius = radius;
+			 		audio5.pause();
+			 		for (j = 0; j < objects.length; j++) {
+			 			if (stage < stageArray.length) {
+			 				objects[j].x = stageArray[stage].startPositionX2;
+							objects[j].y = stageArray[stage].startPositionY2;
+			 			}
+						objects[j].direction = 0;
+						objects[j].cooldown = 0;
+						objects[j].weak = 0;
+						objects[j].dead = 0;
+					}
+				}
+			}
+		}
+
+		/* Denne funskjonen tegner inn alle pelletene som ligger på banen basert på pelletX og pelletY for hver bane bestemt av mapGenerator. Funskjonen bytter i tillegg musikken og gjør at ghostene får verdien weak = 1 som blir viktigere senere. */
+
+		function pellets(xPellet,yPellet) {
+			for (i = 0; i < xPellet.length; i++) {
+				if (x + enhet*1.2 == xPellet[i] && y == yPellet[i] || x - enhet*1.2 == xPellet[i] && y == yPellet[i] || x == xPellet[i] && y + enhet*1.2 == yPellet[i] || x == xPellet[i] && y - enhet*1.2 == yPellet[i]) {
+					xPellet.splice(i,1);
+					yPellet.splice(i,1);
+					audio5.playbackRate = 0.8;
+					audio5.play();
+					audio3.pause();
+					for (j = 0; j < objects.length; j++) {
+						objects[j].weak = 1;
+						tall6 = 1;
+					}
+				}
+				ctx.fillStyle = 'pink';
+				ctx.beginPath();
+				ctx.arc(xPellet[i]/2,yPellet[i]/2,radius*0.45,0*Math.PI,2*Math.PI)
+				ctx.fill();
+			}
+			if (tall6 > 0) {
+				tall6++;
+				if (tall6 == 1000) {
+					for (j = 0; j < objects.length; j++) {
+						objects[j].weak = 0;
+						tall6 = 0;
+						audio5.load();
+						audio5.pause();
+					}
+				}
+			}
+		}
+
+		/* Denne for løkken kjører mapGenerator på hvert map slik at det blir enkelt å addere flere maps. */
+
+		for (j = 0; j < stageArray.length; j++) {
+			mapGenerator(stageArray[j].map,stageArray[j].pointX,stageArray[j].pointY,stageArray[j].pelletX,stageArray[j].pelletY,stageArray[j].cordinateX,stageArray[j].cordinateY,stageArray[j].turnType,stageArray[j].bakgrunnX,stageArray[j].bakgrunnY);
+		}
+
+		/* x og y er start positionen til pacman basert på hvilken bane du er på, hvis du for eksempel vil starte å spille bane 3 i stedet for bane 1 kan du gi stage verdien 2 og pacman sin start posisjon vil også endres. */
+
+		var x = stageArray[stage].startPositionX3;
+		var y = stageArray[stage].startPositionY3;
+
+		/* Tidligere så vi at mapGenerator genererer noe som kalles turnType får hver turn i spillet. i mitt pacman spill kan man bare bevege seg fritt i x eller y retning helt til man kommer til en sving, men ikke alle svinger er like. funskjonene under sammen med verdiene mapGenerator har gitt hver turn hjelper pacman med å endre retning og forteller han om han må stoppe. */
+
+		function turntype1() {
+			if (tall4 == 1) {
+				tall1 = 1;
+				pacMunn1();
+			}
+			else if (tall4 == 2) {
+				tall1 = 2;
+				pacMunn2();
+			}
+			if (tall4 == 3) {
+				tall1 = 3;
+				pacMunn3();
+			}
+			else if (tall4 == 4 && tall1 != 1 && tall1 != 2) {
+				tall1 = 0;
+			}
+		}
+
+		function turntype2() {
+			if (tall4 == 1) {
+				tall1 = 1;
+				pacMunn1();
+			}
+			else if (tall4 == 2 && tall1 != 3 && tall1 != 4) {
+				tall1 = 0;
+			}
+			else if (tall4 == 3) {
+				tall1 = 3;
+				pacMunn3();
+			}
+			else if (tall4 == 4) {
+				tall1 = 4;
+				pacMunn4();
+			}
+		}
+
+		function turntype3() {
+			if (tall4 == 1 && tall1 != 3 && tall1 != 4) {
+				tall1 = 0;
+			}
+			else if (tall4 == 2) {
+				tall1 = 2;
+				pacMunn2();
+			}
+			else if (tall4 == 3) {
+				tall1 = 3;
+				pacMunn3();
+			}
+			else if (tall4 == 4 && tall1 != 1 && tall1 != 2) {
+				tall1 = 0;
+			}
+			else {
+				tall1 = 0;
+			}
+		}
+
+		function turntype4() {
+			if (tall4 == 1  && tall1 != 3 && tall1 != 4) {
+				tall1 = 0;
+			}
+			else if (tall4 == 2) {
+				tall1 = 2;
+				pacMunn2();
+			}
+			else if (tall4 == 3) {
+				tall1 = 3;
+				pacMunn3();
+			}
+			else if (tall4 == 4) {
+				tall1 = 4;
+				pacMunn4();
+			}
+		}
+
+		function turntype5() {
+			if (tall4 == 1) {
+				tall1 = 1;
+				pacMunn1();
+			}
+			else if (tall4 == 2  && tall1 != 3 && tall1 != 4) {
+				tall1 = 0;
+			}
+			else if (tall4 == 3) {
+				tall1 = 3;
+				pacMunn3();
+			}
+			else if (tall4 == 4 && tall1 != 1 && tall1 != 2) {
+				tall1 = 0;
+			}
+			else {
+				tall1 = 0;
+			}
+		}
+
+		function turntype6() {
+			if (tall4 == 1) {
+				tall1 = 1;
+				pacMunn1();
+			}
+			else if (tall4 == 2) {
+				tall1 = 2;
+				pacMunn2();
+			}
+			else if (tall4 == 3) {
+				tall1 = 3;
+				pacMunn3();
+			}
+			else if (tall4 == 4) {
+				tall1 = 4;
+				pacMunn4();
+			}
+		}
+
+		function turntype7() {
+			if (tall4 == 1) {
+				tall1 = 1;
+				pacMunn1();
+			}
+			else if (tall4 == 2 && tall1 != 3 && tall1 != 4) {
+				tall1 = 0;
+			}
+			else if (tall4 == 3  && tall1 != 1 && tall1 != 2) {
+				tall1 = 0;
+			}
+			else if (tall4 == 4) {
+				tall1 = 4;
+				pacMunn4();
+			}
+			else {
+				tall1 = 0;
+			}
+		}
+
+		function turntype8() {
+			if (tall4 == 1 && tall1 != 3 && tall1 != 4) {
+				tall1 = 0;
+			}
+			else if (tall4 == 2) {
+				tall1 = 2;
+				pacMunn2();
+			}
+			else if (tall4 == 3  && tall1 != 1 && tall1 != 2) {
+				tall1 = 0;
+			}
+			else if (tall4 == 4) {
+				tall1 = 4;
+				pacMunn4();
+			}
+			else {
+				tall1 = 0;
+			}
+		}
+
+		function turntype9() {
+			if (tall4 == 1) {
+				tall1 = 1;
+				pacMunn1();
+			}
+			else if (tall4 == 2) {
+				tall1 = 2;
+				pacMunn2();
+			}
+			if (tall4 == 3 && tall1 != 1 && tall1 != 2) {
+				tall1 = 0;
+			}
+			else if (tall4 == 4) {
+				tall1 = 4;
+				pacMunn4();
+			}
+		}
+
+		function turntype10() {
+			if (tall4 == 1) {
+				tall1 = 1;
+				pacMunn1();
+			}
+			else if (tall4 == 2) {
+				tall1 = 2;
+				pacMunn2();
+			}
+			else if (tall4 == 3 && tall1 != 1 && tall1 != 2) {
+				tall1 = 0;
+			}
+			else if (tall4 == 4 && tall1 != 1 && tall1 != 2) {
+				tall1 = 0;
+			}
+		}
+
+		/* Disse funskjonene er pacman sitt utseende i ulike retninger. Disse funksjonene blir brukt helt nederst i dokumentet hvor du finner koden for kontrollene. */ 
+
+		function pacMunn1() {
+			upperPacMouth1 = 0.75;
+			upperPacMouth2 = 1.75;
+			lowerPacMouth1 = 0.25;
+			lowerPacMouth2 = 1.25;
+		}
+
+		function pacMunn2() {
+			upperPacMouth1 = 1.25;
+			upperPacMouth2 = 0.25;
+			lowerPacMouth1 = 1.75;
+			lowerPacMouth2 = 0.75;
+		}
+
+		function pacMunn3() {
+			upperPacMouth1 = -1.25; 
+			upperPacMouth2 = -0.25;
+			lowerPacMouth1 = -0.75;
+			lowerPacMouth2 = 0.25;
+		}
+
+		function pacMunn4() {
+			upperPacMouth1 = -0.25; 
+			upperPacMouth2 = 0.75;
+			lowerPacMouth1 = 0.25;
+			lowerPacMouth2 = 1.25;
+		}
+
+		/* Denne funksjonen er hvordan du beveger pacman og hvordan pacman reagerer til omgivelsene. Pacman beveger seg avhengig av tall1 og tall4 som du kan endre med WASD elle piltastene        (kommer tilbake til dette på slutten). Denne koden kommuniserer alltid med selve mappet slik at den vet sin egen posisjon i forhold til banen, slik vet pacman hvor han kan og ikke kan svinge og i hvilken retning han kan svinge. Her finner vi også koden hva som skjer når pacman spiser et spøkelse og hva som skjer når pacman dør. */
+
+		function pacman(cordinateX,cordinateY,turnType) {
+			ctx.fillStyle = 'yellow';
+			ctx.beginPath();
+			ctx.arc(x/2,y/2, pacRadius*0.85, upperPacMouth1 * Math.PI, upperPacMouth2 * Math.PI);
+			ctx.fill();
+			ctx.beginPath();
+			ctx.arc(x/2,y/2, pacRadius*0.85, lowerPacMouth1 * Math.PI, lowerPacMouth2 * Math.PI);
+			ctx.fill();
+			for (k = 0; k < objects.length; k++) {
+				if (x - objects[k].x < enhet*2.5 && y == objects[k].y && x - objects[k].x > 0 || objects[k].x - x < enhet*2.5 && y == objects[k].y && objects[k].x - x > 0 || x == objects[k].x && y - objects[k].y < enhet*2.5 && y - objects[k].y > 0 || x == objects[k].x && objects[k].y - y < enhet*2.5 && objects[k].y - y > 0 ) {
+					if (objects[k].weak == 1) {
+						objects[k].direction = 0;
+						objects[k].weak = 0;
+						objects[k].dead = 1;
+						ghostKills += 100;
+						audio1.play();
+					}
+					else {
+						if (objects[k].dead != 1) {
+							audio5.pause();
+							audio5.load();
+							check = false;
+							tall1 = 0;
+							tall4 = 0;
+						}
+					}
+				}
+			}
+			for (i = 0; i < cordinateX.length; i++) {
+				if (cordinateX[i] == x && cordinateY[i] == y) {
+					if (turnType[i] == 1) {
+						turntype1();
+					}
+					else if (turnType[i] == 2) {
+						turntype2();
+					}
+					else if (turnType[i] == 3) {
+						turntype3();
+					}
+					else if (turnType[i] == 4) {
+						turntype4();
+					}
+					else if (turnType[i] == 5) {
+						turntype5();
+					}
+					else if (turnType[i] == 6) {
+						turntype6();
+					}
+					else if (turnType[i] == 7) {
+						turntype7();
+					}
+					else if (turnType[i] == 8) {
+						turntype8();
+					}
+					else if (turnType[i] == 9) {
+						turntype9();
+					}
+					else if (turnType[i] == 10) {
+						turntype10();
+					}
+				}
+				else if (x == (width+enhet)*2) {
+					x = -enhet*1.2;
+				}
+				else if (x == -enhet*2) {
+					x = width*2 + enhet*1.2;
+				}
+			}
+			if (tall1 == 1) {
+				x += enhet/10;
+			}
+			else if (tall1 == 2) {
+				x -= enhet/10;
+			}
+			else if (tall1 == 3) {
+				y += enhet/10;
+			}
+			else if (tall1 == 4) {
+				y -= enhet/10;
+			}
+		}
+
+		/* Dette er funskjonen som får pacman sin munn til å lukke og åpne. Den avhenger av parameteren speed som bestemmer hvor fort den skal åpne og lukke munnen. */
+
+		function pacAnimation(speed) {
+			if (tall1 == 1) {
+				if (upperPacMouth2 >= 2) {
+					tall2 = 1;
+				}
+				else if (upperPacMouth2 <= 1.75) {
+					tall2 = 2;
+				}
+				if (tall2 == 2) {
+					upperPacMouth2 += speed;
+					lowerPacMouth1 -= speed;
+				}
+				else if (tall2 == 1) {
+					upperPacMouth2 -= speed;
+					lowerPacMouth1 += speed;
+				}
+			}
+			if (tall1 == 2) {
+				if (upperPacMouth1 >= 1.25) {
+					tall2 = 1;
+				}
+				else if (upperPacMouth1 <= 1) {
+					tall2 = 2;
+				}
+				if (tall2 == 2) {
+					upperPacMouth1 += speed;
+					lowerPacMouth2 -= speed;
+				}
+				else if (tall2 == 1) {
+					upperPacMouth1 -= speed;
+					lowerPacMouth2 += speed;
+				}
+			}
+			if (tall1 == 3) {
+				if (upperPacMouth1 >= -1.25) {
+					tall2 = 1;
+				}
+				else if (upperPacMouth1 <= -1.5) {
+					tall2 = 2;
+				}
+				if (tall2 == 2) {
+					upperPacMouth1 += speed;
+					lowerPacMouth2 -= speed;
+				}
+				else if (tall2 == 1) {
+					upperPacMouth1 -= speed;
+					lowerPacMouth2 += speed;
+				}
+			}
+			if (tall1 == 4) {
+				if (upperPacMouth1 >= -0.25) {
+					tall2 = 1;
+				}
+				else if (upperPacMouth1 <= -0.5) {
+					tall2 = 2;
+				}
+				if (tall2 == 2) {
+					upperPacMouth1 += speed;
+					lowerPacMouth2 -= speed;
+				}
+				else if (tall2 == 1) {
+					upperPacMouth1 -= speed;
+					lowerPacMouth2 += speed;
+				}
+			}
+		}
+
+		/* Dette er funskjonen som skjer når pacman dør. Den stopper spillet, kjører en liten animasjon, får pacman til å miste et liv og restarter de fleste variabler som gjør at spillet starter på nytt. */
+
+		function pacDeath() {
+			if (check == false) {
+				audio2.play();
+				for (i = 0; i < objects.length; i++) {
+						objects[i].direction = 0;
+						pacRadius -= enhet/600;
+						audio3.pause();
+					}
+				if (pacRadius < 0) {
+					randomArray();
+					tall1 = NaN;
+					tall2 = null;
+					tall4 = null;
+					tall5 = null;
+					check = true;
+					lives -= 1;
+					lowerPacMouth1 = 0;
+					lowerPacMouth2 = 2;
+					upperPacMouth1 = 0;
+					upperPacMouth2 = 2;
+					pacRadius = radius;
+					x = stageArray[stage].startPositionX4;
+					y = stageArray[stage].startPositionY4;
+					for (i = 0; i < objects.length; i++) {
+						objects[i].x = stageArray[stage].startPositionX2;
+						objects[i].y = stageArray[stage].startPositionY2;
+						objects[i].direction = 0;
+						objects[i].cooldown = 0;
+						objects[i].weak = 0;
+						objects[i].dead = 0;
+					}
+				}
+			}
+		}
+
+		/* Dette er objekter for alle ghostene. å legge til flere ghosts er veldig enkelt, lag et nytt object med navnet til ghosten, gi den en unik farge og legg dette objectet inn i ghosts arrayen i funksjonen randomArray. I objektene finner du start posisjonene som avhenger av hvilket stage du er i, kordinater for text som flyr over ghostene når de blir spist, retningen deres, fargen deres, og variabler som forteller og ghosten er svak eller død. */
+
+		var blinky = {
+			x: stageArray[stage].startPositionX1,
+			y: stageArray[stage].startPositionY1,
+			xText: 0,
+			yText: 0,
+			textTimer: 0,
+			direction: 0,
+			color: 'red',
+			cooldown: 0,
+			weak: 0,
+			dead: 0
+		};
+
+		var pinky = {
+			x: stageArray[stage].startPositionX1,
+			y: stageArray[stage].startPositionY1,
+			xText: 0,
+			yText: 0,
+			textTimer: 0,
+			direction: 0,
+			color: 'hotpink',
+			cooldown: 0,
+			weak: 0,
+			dead: 0
+		};
+
+		var inky = {
+			x: stageArray[stage].startPositionX1,
+			y: stageArray[stage].startPositionY1,
+			xText: 0,
+			yText: 0,
+			textTimer: 0,
+			direction: 0,
+			color: 'cyan',
+			cooldown: 0,
+			weak: 0,
+			dead: 0
+		};
+
+		var clyde = {
+			x: stageArray[stage].startPositionX1,
+			y: stageArray[stage].startPositionY1,
+			xText: 0,
+			yText: 0,
+			textTimer: 0,
+			direction: 0,
+			color: 'orange',
+			cooldown: 0,
+			weak: 0,
+			dead: 0
+		};
+
+		var objects = [];
+
+		/* Denne funskjonen er litt unødvendig, den gjør bare at ghostene står i tilfeldig posisjon i arrayen både når du starter spillet, dør eller fullfører en bane. slik vil det være ulikt hvem som kommer ut i banen først og hvem som kommer sist. */
+
+		function randomArray() {
+			objects = [];
+			var ghosts = [blinky,pinky,inky,clyde];
+			var tall6 = 0;
+			while (ghosts.length > 0) {
+				tall6 = Math.floor(Math.random()*ghosts.length);
+				objects.push(ghosts[tall6]);
+				ghosts.splice(tall6,1);
+			}
+		}
+
+		/* Funskjoner for ulike tilstander spøkelsene kan være i. dette er alt fra utseende når de står stiller, beveger seg i alle 4 retninger, er weak, og er døde. */
+
+		function ghostLeft(color,x,y) {
+			ctx.fillStyle = color;
+			ctx.beginPath();
+			ctx.arc(x/2,y/2-radius/5,radius*0.9,0*Math.PI,2*Math.PI);
+			ctx.arc(x/2,y/2+radius-radius/5,radius*0.3,0*Math.PI,2*Math.PI);
+			ctx.arc(x/2-radius/1.64,y/2+radius-radius/5,radius*0.3,0*Math.PI,2*Math.PI)
+			ctx.arc(x/2+radius/1.64,y/2+radius-radius/5,radius*0.3,0*Math.PI,2*Math.PI)
+			ctx.fill();
+			ctx.fillRect(x/2-radius*0.9,y/2-radius/5,radius*1.8,radius)
+			ctx.fillStyle = 'white';
+			ctx.beginPath();
+			ctx.arc(x/2+radius/2.5,y/2-radius*0.2,radius*0.3,0*Math.PI,2*Math.PI)
+			ctx.arc(x/2-radius/2.5,y/2-radius*0.2,radius*0.3,0*Math.PI,2*Math.PI)
+			ctx.fill();
+			ctx.fillStyle = 'blue';
+			ctx.beginPath();
+			ctx.arc(x/2-radius/1.9,y/2-radius*0.2,radius*0.15,0*Math.PI,2*Math.PI)
+			ctx.arc(x/2+radius/4,y/2-radius*0.2,radius*0.15,0*Math.PI,2*Math.PI)
+			ctx.fill();
+		}
+
+		function ghostRight(color,x,y) {
+			ctx.fillStyle = color;
+			ctx.beginPath();
+			ctx.arc(x/2,y/2-radius/5,radius*0.9,0*Math.PI,2*Math.PI);
+			ctx.arc(x/2,y/2+radius-radius/5,radius*0.3,0*Math.PI,2*Math.PI);
+			ctx.arc(x/2-radius/1.64,y/2+radius-radius/5,radius*0.3,0*Math.PI,2*Math.PI)
+			ctx.arc(x/2+radius/1.64,y/2+radius-radius/5,radius*0.3,0*Math.PI,2*Math.PI)
+			ctx.fill();
+			ctx.fillRect(x/2-radius*0.9,y/2-radius/5,radius*1.8,radius)
+			ctx.fillStyle = 'white';
+			ctx.beginPath();
+			ctx.arc(x/2+radius/2.5,y/2-radius*0.2,radius*0.3,0*Math.PI,2*Math.PI)
+			ctx.arc(x/2-radius/2.5,y/2-radius*0.2,radius*0.3,0*Math.PI,2*Math.PI)
+			ctx.fill();
+			ctx.fillStyle = 'blue';
+			ctx.beginPath();
+			ctx.arc(x/2+radius/1.9,y/2-radius*0.2,radius*0.15,0*Math.PI,2*Math.PI)
+			ctx.arc(x/2-radius/4,y/2-radius*0.2,radius*0.15,0*Math.PI,2*Math.PI)
+			ctx.fill();
+		}
+
+		function ghostUp(color,x,y) {
+			ctx.fillStyle = color;
+			ctx.beginPath();
+			ctx.arc(x/2,y/2-radius/5,radius*0.9,0*Math.PI,2*Math.PI);
+			ctx.arc(x/2,y/2+radius-radius/5,radius*0.3,0*Math.PI,2*Math.PI);
+			ctx.arc(x/2-radius/1.64,y/2+radius-radius/5,radius*0.3,0*Math.PI,2*Math.PI)
+			ctx.arc(x/2+radius/1.64,y/2+radius-radius/5,radius*0.3,0*Math.PI,2*Math.PI)
+			ctx.fill();
+			ctx.fillRect(x/2-radius*0.9,y/2-radius/5,radius*1.8,radius)
+			ctx.fillStyle = 'white';
+			ctx.beginPath();
+			ctx.arc(x/2+radius/2.5,y/2-radius*0.25,radius*0.3,0*Math.PI,2*Math.PI)
+			ctx.arc(x/2-radius/2.5,y/2-radius*0.25,radius*0.3,0*Math.PI,2*Math.PI)
+			ctx.fill();
+			ctx.fillStyle = 'blue';
+			ctx.beginPath();
+			ctx.arc(x/2+radius/2.5,y/2-radius*0.37,radius*0.15,0*Math.PI,2*Math.PI)
+			ctx.arc(x/2-radius/2.5,y/2-radius*0.37,radius*0.15,0*Math.PI,2*Math.PI)
+			ctx.fill();
+		}
+
+		function ghostDown(color,x,y) {
+			ctx.fillStyle = color;
+			ctx.beginPath();
+			ctx.arc(x/2,y/2-radius/5,radius*0.9,0*Math.PI,2*Math.PI);
+			ctx.arc(x/2,y/2+radius-radius/5,radius*0.3,0*Math.PI,2*Math.PI);
+			ctx.arc(x/2-radius/1.64,y/2+radius-radius/5,radius*0.3,0*Math.PI,2*Math.PI)
+			ctx.arc(x/2+radius/1.64,y/2+radius-radius/5,radius*0.3,0*Math.PI,2*Math.PI)
+			ctx.fill();
+			ctx.fillRect(x/2-radius*0.9,y/2-radius/5,radius*1.8,radius)
+			ctx.fillStyle = 'white';
+			ctx.beginPath();
+			ctx.arc(x/2+radius/2.5,y/2-radius*0.2,radius*0.3,0*Math.PI,2*Math.PI)
+			ctx.arc(x/2-radius/2.5,y/2-radius*0.2,radius*0.3,0*Math.PI,2*Math.PI)
+			ctx.fill();
+			ctx.fillStyle = 'blue';
+			ctx.beginPath();
+			ctx.arc(x/2+radius/2.5,y/2-radius*0.06,radius*0.15,0*Math.PI,2*Math.PI)
+			ctx.arc(x/2-radius/2.5,y/2-radius*0.06,radius*0.15,0*Math.PI,2*Math.PI)
+			ctx.fill();
+		}
+
+		function ghostNeutral(color,x,y) {
+			ctx.fillStyle = color;
+			ctx.beginPath();
+			ctx.arc(x/2,y/2-radius/5,radius*0.9,0*Math.PI,2*Math.PI);
+			ctx.arc(x/2,y/2+radius-radius/5,radius*0.3,0*Math.PI,2*Math.PI);
+			ctx.arc(x/2-radius/1.64,y/2+radius-radius/5,radius*0.3,0*Math.PI,2*Math.PI)
+			ctx.arc(x/2+radius/1.64,y/2+radius-radius/5,radius*0.3,0*Math.PI,2*Math.PI)
+			ctx.fill();
+			ctx.fillRect(x/2-radius*0.9,y/2-radius/5,radius*1.8,radius)
+			ctx.fillStyle = 'white';
+			ctx.beginPath();
+			ctx.arc(x/2+radius/2.5,y/2-radius*0.2,radius*0.3,0*Math.PI,2*Math.PI)
+			ctx.arc(x/2-radius/2.5,y/2-radius*0.2,radius*0.3,0*Math.PI,2*Math.PI)
+			ctx.fill();
+			ctx.fillStyle = 'blue';
+			ctx.beginPath();
+			ctx.arc(x/2+radius/2.5,y/2-radius*0.2,radius*0.15,0*Math.PI,2*Math.PI)
+			ctx.arc(x/2-radius/2.5,y/2-radius*0.2,radius*0.15,0*Math.PI,2*Math.PI)
+			ctx.fill();
+		}
+
+		function ghostWeak(x,y) {
+			if (tall6 > 800 && tall6 < 820 || tall6 > 840 && tall6 < 860 || tall6 > 880 && tall6 < 900 || tall6 > 920 && tall6 < 940 || tall6 > 960 && tall6 < 980) {
+				ctx.fillStyle = 'white';
+			}
+			else {
+				ctx.fillStyle = 'blue';
+			}
+			ctx.beginPath();
+			ctx.arc(x/2,y/2-radius/5,radius*0.9,0*Math.PI,2*Math.PI);
+			ctx.arc(x/2,y/2+radius-radius/5,radius*0.3,0*Math.PI,2*Math.PI);
+			ctx.arc(x/2-radius/1.64,y/2+radius-radius/5,radius*0.3,0*Math.PI,2*Math.PI)
+			ctx.arc(x/2+radius/1.64,y/2+radius-radius/5,radius*0.3,0*Math.PI,2*Math.PI)
+			ctx.fill();
+			ctx.fillRect(x/2-radius*0.9,y/2-radius/5,radius*1.8,radius)
+			ctx.fillStyle = 'pink';
+			ctx.beginPath();
+			ctx.arc(x/2+radius/2.5,y/2-radius*0.2,radius*0.2,0*Math.PI,2*Math.PI)
+			ctx.arc(x/2-radius/2.5,y/2-radius*0.2,radius*0.2,0*Math.PI,2*Math.PI)
+			ctx.fill();
+			ctx.beginPath();
+			ctx.strokeStyle = 'pink';
+			ctx.lineWidth = enhet/12;
+			ctx.moveTo(x/2-radius/4,y/2+radius*0.4-radius/10)
+			ctx.lineTo(x/2-radius/1.7,y/2+radius*0.7-radius/10)
+			ctx.moveTo(x/2-radius/3,y/2+radius*0.4-radius/10)
+			ctx.lineTo(x/2-radius/200,y/2+radius*0.7-radius/10)
+			ctx.moveTo(x/2+radius/4,y/2+radius*0.4-radius/10)
+			ctx.lineTo(x/2+radius/1.7,y/2+radius*0.7-radius/10)
+			ctx.moveTo(x/2+radius/3,y/2+radius*0.4-radius/10)
+			ctx.lineTo(x/2+radius/200,y/2+radius*0.7-radius/10)
+			ctx.stroke();
+		}
+
+		function ghostEyesLeft(x,y) {
+			ctx.fillStyle = 'white';
+			ctx.beginPath();
+			ctx.arc(x/2+radius/2.5,y/2-radius*0.2,radius*0.3,0*Math.PI,2*Math.PI)
+			ctx.arc(x/2-radius/2.5,y/2-radius*0.2,radius*0.3,0*Math.PI,2*Math.PI)
+			ctx.fill();
+			ctx.fillStyle = 'blue';
+			ctx.beginPath();
+			ctx.arc(x/2-radius/1.9,y/2-radius*0.2,radius*0.15,0*Math.PI,2*Math.PI)
+			ctx.arc(x/2+radius/4,y/2-radius*0.2,radius*0.15,0*Math.PI,2*Math.PI)
+			ctx.fill();
+		}
+
+		function ghostEyesRight(x,y) {
+			ctx.fillStyle = 'white';
+			ctx.beginPath();
+			ctx.arc(x/2+radius/2.5,y/2-radius*0.2,radius*0.3,0*Math.PI,2*Math.PI)
+			ctx.arc(x/2-radius/2.5,y/2-radius*0.2,radius*0.3,0*Math.PI,2*Math.PI)
+			ctx.fill();
+			ctx.fillStyle = 'blue';
+			ctx.beginPath();
+			ctx.arc(x/2+radius/1.9,y/2-radius*0.2,radius*0.15,0*Math.PI,2*Math.PI)
+			ctx.arc(x/2-radius/4,y/2-radius*0.2,radius*0.15,0*Math.PI,2*Math.PI)
+			ctx.fill();
+		}
+
+		function ghostEyesDown(x,y) {
+			ctx.fillStyle = 'white';
+			ctx.beginPath();
+			ctx.arc(x/2+radius/2.5,y/2-radius*0.2,radius*0.3,0*Math.PI,2*Math.PI)
+			ctx.arc(x/2-radius/2.5,y/2-radius*0.2,radius*0.3,0*Math.PI,2*Math.PI)
+			ctx.fill();
+			ctx.fillStyle = 'blue';
+			ctx.beginPath();
+			ctx.arc(x/2+radius/2.5,y/2-radius*0.06,radius*0.15,0*Math.PI,2*Math.PI)
+			ctx.arc(x/2-radius/2.5,y/2-radius*0.06,radius*0.15,0*Math.PI,2*Math.PI)
+			ctx.fill();
+		}
+
+		function ghostEyesUp(x,y) {
+			ctx.fillStyle = 'white';
+			ctx.beginPath();
+			ctx.arc(x/2+radius/2.5,y/2-radius*0.25,radius*0.3,0*Math.PI,2*Math.PI)
+			ctx.arc(x/2-radius/2.5,y/2-radius*0.25,radius*0.3,0*Math.PI,2*Math.PI)
+			ctx.fill();
+			ctx.fillStyle = 'blue';
+			ctx.beginPath();
+			ctx.arc(x/2+radius/2.5,y/2-radius*0.37,radius*0.15,0*Math.PI,2*Math.PI)
+			ctx.arc(x/2-radius/2.5,y/2-radius*0.37,radius*0.15,0*Math.PI,2*Math.PI)
+			ctx.fill();
+		}
+
+		/* En funksjon som fungerer for alle ghostene så lenge alle ghostene er inne i en enkel array  (som de er). Akkurat som pacman kommuniserer ghosten alltid med selve mappet. Den første delen av koden bruker arrays for å fortelle ghosten hvor ghosten kan bytte retning og hvilken retning den kan bytte. Den neste delen av koden elimererer "backtracking" altså at den ikke kan gå fram også tilbake (da blir ghosten sittende fast i enkelte steder) ved å splice retninger slik at ghosten ikke kan gå tilbake. Den neste delen av koden finner ghosten sin posisjon i forhold til pacman og øker sansynligheten for at ghosten går i pacman sin retning hvis de er i nærheten. Den neste delen av koden. Den neste delen av koden er animasjoner og oppførselen til ghosten når han er weak og død. i tillegg er animasjonen for når ghosts blir spist på slutten hvor det kommer "100" over dem. */
+
+		function ghost(object,cordinateX,cordinateY,turnType) {
+			for (k = 0; k < object.length; k++) {
+				var array1 = [];
+				var distanceY = object[k].y - y;
+				var distanceX = object[k].x - x; 
+				for (i = 0; i < cordinateX.length; i++) {
+					if (cordinateX[i] == object[k].x && cordinateY[i] == object[k].y && object[k].dead != 1) {
+						if (turnType[i] == 1) {
+							array1 = [1,2,3];
+						}
+						else if (turnType[i] == 2) {
+							array1 = [1,3,4];
+						}
+						else if (turnType[i] == 3) {
+							array1 = [2,3];
+						}
+						else if (turnType[i] == 4) {
+							array1 = [2,3,4];
+						}
+						else if (turnType[i] == 5) {
+							array1 = [1,3];
+						}
+						else if (turnType[i] == 6) {
+							array1 = [1,2,3,4];
+						}
+						else if (turnType[i] == 7) {
+							array1 = [1,4];
+						}
+						else if (turnType[i] == 8) {
+							array1 = [2,4];
+						}
+						else if (turnType[i] == 9) {
+							array1 = [1,2,4];
+						}
+						else if (turnType[i] == 10) {
+							array1 = [1,2];
+						}
+						for (j = 0; j < array1.length; j++) {
+							if (object[k].direction == 1) {
+								if (array1[j] == 2) {
+									array1.splice(j,1);
+								}
+							}
+							if (object[k].direction == 2) {
+								if (array1[j] == 1) {
+									array1.splice(j,1);
+								}
+							}
+							if (object[k].direction == 3) {
+								if (array1[j] == 4) {
+									array1.splice(j,1);
+								}
+							}
+							if (object[k].direction == 4) {
+								if (array1[j] == 3) {
+									array1.splice(j,1);
+								}
+							}
+						}
+						if (distanceY < enhet*20 && distanceX < enhet*20 && distanceY > 0 && distanceX > 0 && object[k].weak != 1) {
+							if (turnType[i] == 4 || turnType[i] == 6 || turnType[i] == 8 || turnType[i] == 9) {
+								array1.push(2);
+								array1.push(4);
+								array1.push(2);
+								array1.push(4);
+							}
+							else if (turnType[i] == 1 || turnType[i] == 3) {
+								array1.push(2);
+								array1.push(2);
+								array1.push(2);
+								array1.push(2);
+							}
+							else if (turnType[i] == 2 || turnType[i] == 7) {
+								array1.push(4);
+								array1.push(4);
+								array1.push(4);
+								array1.push(4);
+							}
+						}
+						else if (distanceY < enhet*20 && distanceX > -enhet*20 && distanceY > 0 && distanceX < 0 && object[k].weak != 1) {
+							if (turnType[i] == 2 || turnType[i] == 6 || turnType[i] == 7 || turnType[i] == 9) {
+								array1.push(1);
+								array1.push(4);
+								array1.push(1);
+								array1.push(4);
+							}
+							else if (turnType[i] == 1 || turnType[i] == 5) {
+								array1.push(1);
+								array1.push(1);
+								array1.push(1);
+								array1.push(1);
+							}
+							else if (turnType[i] == 4 || turnType[i] == 8) {
+								array1.push(4);
+								array1.push(4);
+								array1.push(4);
+								array1.push(4);
+							}
+						}
+						else if (distanceY > -enhet*20 && distanceX < enhet*20 && distanceY < 0 && distanceX > 0 && object[k].weak != 1) {
+							if (turnType[i] == 1 || turnType[i] == 3 || turnType[i] == 4 || turnType[i] == 6) {
+								array1.push(2);
+								array1.push(3);
+								array1.push(2);
+								array1.push(3);
+							}
+							else if (turnType[i] == 8 || turnType[i] == 9) {
+								array1.push(2);
+								array1.push(2);
+								array1.push(2);
+								array1.push(2);
+							}
+							else if (turnType[i] == 2 || turnType[i] == 5) {
+								array1.push(3);
+								array1.push(3);
+								array1.push(3);
+								array1.push(3);
+							}
+
+						}
+						else if (distanceY > -enhet*20 && distanceX > -enhet*20 && distanceY < 0 && distanceX < 0 && object[k].weak != 1) {
+							if (turnType[i] == 2 || turnType[i] == 2 || turnType[i] == 5 || turnType[i] == 6) {
+								array1.push(1);
+								array1.push(3);
+								array1.push(1);
+								array1.push(3);
+							}
+							else if (turnType[i] == 7 || turnType[i] == 9) {
+								array1.push(1);
+								array1.push(1);
+								array1.push(1);
+								array1.push(1);
+							}
+							else if (turnType[i] == 3 || turnType[i] == 4) {
+								array1.push(3);
+								array1.push(3);
+								array1.push(3);
+								array1.push(3);
+							}
+
+						}
+						else if (distanceY < enhet*20 && distanceX == 0 && distanceY > 0 && object[k].weak != 1) {
+							if (turnType[i] == 2 || turnType[i] == 4 || turnType[i] == 6 || turnType[i] == 6 || turnType[i] == 8 || turnType[i] == 9) {
+								array1.push(4);
+								array1.push(4);
+								array1.push(4);
+								array1.push(4);
+							}
+						}
+						else if (distanceY > -enhet*20 && distanceX == 0 && distanceY < 0 && object[k].weak != 1) {
+							if (turnType[i] == 1 || turnType[i] == 2 || turnType[i] == 3 || turnType[i] == 4 || turnType[i] == 5 || turnType[i] == 6) {
+								array1.push(3);
+								array1.push(3);
+								array1.push(3);
+								array1.push(3);
+							}
+						}
+						else if (distanceY == 0 && distanceX < enhet*20 && distanceX > 0 && object[k].weak != 1) {
+							if (turnType[i] == 1 || turnType[i] == 3 || turnType[i] == 4 || turnType[i] == 6 || turnType[i] == 8 || turnType[i] == 9) {
+								array1.push(2);
+								array1.push(2);
+								array1.push(2);
+								array1.push(2);
+							}
+						}
+						else if (distanceY == 0 && distanceX > -enhet*20 && distanceX < 0 && object[k].weak != 1) {
+							if (turnType[i] == 1 || turnType[i] == 2 || turnType[i] == 5 || turnType[i] == 6 || turnType[i] == 7 || turnType[i] == 9) {
+								array1.push(1);
+								array1.push(1);
+								array1.push(1);
+								array1.push(1);
+							} 
+						}
+	 					object[k].direction = array1[Math.floor(Math.random()*array1.length)];
+					}
+					else if (object[k].x == (width+enhet)*2) {
+						object[k].x = -enhet*1.2;
+					}
+					else if (object[k].x == -enhet*2) {
+						object[k].x = width*2 + enhet*1.2;
+					}
+				}
+				if (object[k].direction == 1) {
+					if (object[k].weak == 1) {
+						object[k].x += enhet/10;
+						ghostWeak(object[k].x,object[k].y)
+					}
+					else {
+						object[k].x += enhet/10;
+						ghostRight(object[k].color,object[k].x,object[k].y)
+					}
+				}
+				else if (object[k].direction == 2) {
+					if (object[k].weak == 1) {
+						object[k].x -= enhet/10;
+						ghostWeak(object[k].x,object[k].y)
+					}
+					else {
+						object[k].x -= enhet/10;
+						ghostLeft(object[k].color,object[k].x,object[k].y)
+					}
+				}
+				else if (object[k].direction == 3) {
+					if (object[k].weak == 1) {
+						object[k].y += enhet/10;
+						ghostWeak(object[k].x,object[k].y)
+					}
+					else {
+						object[k].y += enhet/10;
+						ghostDown(object[k].color,object[k].x,object[k].y)
+					}
+				}
+				else if (object[k].direction == 4) {
+					if (object[k].weak == 1) {
+						object[k].y -= enhet/10;
+						ghostWeak(object[k].x,object[k].y)
+					}
+					else {
+						object[k].y -= enhet/10;
+						ghostUp(object[k].color,object[k].x,object[k].y)
+					}
+				}
+				else {
+					if (object[k].dead != 1) {
+						ghostNeutral(object[k].color,object[k].x,object[k].y)
+						if (tall1 > 0) {
+							tall5 = 1;
+						}
+						if (tall5 == 1) {
+							object[k].cooldown += 0.005;
+							if (object[k].cooldown > k) {
+								object[k].direction = 4;
+							}
+						}
+						if (object[k].weak == 1) {
+							ghostWeak(object[k].x,object[k].y)
+						}
+					}
+					else {
+						tekst1.innerHTML = 'Points: ' + (tall3 + ghostKills);
+						object[k].textTimer++;
+						if (object[k].xText == 0 && object[k].yText == 0) {
+							object[k].xText = object[k].x
+							object[k].yText = object[k].y
+						}
+						if (object[k].textTimer < 50) {
+							ctx.font = '15px Arial';
+							ctx.strokeStyle = 'red';
+							ctx.strokeText('100', object[k].xText/2-enhet/2,object[k].yText/2)
+							object[k].yText -= 1;
+							object[k].yText -= 1;
+						}
+							if (object[k].x < stageArray[stage].startPositionX2) {
+								ghostEyesRight(object[k].x,object[k].y)
+								object[k].x += enhet/5;
+							}
+							else if (object[k].x > stageArray[stage].startPositionX2) {
+								ghostEyesLeft(object[k].x,object[k].y)
+								object[k].x -= enhet/5;
+							}
+							else {
+								if (object[k].y < stageArray[stage].startPositionY2) {
+									ghostEyesDown(object[k].x,object[k].y)
+									object[k].y += enhet/5;
+								}
+								else if (object[k].y > stageArray[stage].startPositionY2) {
+									ghostEyesUp(object[k].x,object[k].y)
+									object[k].y -= enhet/5;
+								}
+							}
+						if (object[k].x + enhet/10 == stageArray[stage].startPositionX2) {
+							object[k].x -= enhet/10;
+						}
+						else if (object[k].x - enhet/10 == stageArray[stage].startPositionX2) {
+							object[k].x += enhet/10;
+						}
+						else if (object[k].y + enhet/10 == stageArray[stage].startPositionY2) {
+							object[k].y -= enhet/10;
+						}
+						else if (object[k].y - enhet/10 == stageArray[stage].startPositionY2) {
+							object[k].y += enhet/10;
+						}
+						if (object[k].x == stageArray[stage].startPositionX2 && object[k].y == stageArray[stage].startPositionY2) {
+							object[k].x = stageArray[stage].startPositionX2;
+							object[k].y = stageArray[stage].startPositionY2;
+							object[k].dead = 0;
+							object[k].xText = 0;
+							object[k].yText = 0;
+							object[k].textTimer = 0;
+							object[k].cooldown = 1;
+							object[k].weak = 0;
+							object.push(object[k]);
+							object.splice(k,1);
+						} 
+					}
+				}
+			}
+		}
+
+		/* En funskjon for timeren på høyre gjørne av spillet, den er mye mer komplisert enn den bør være men if setningene er der bare for å gjøre at det ser fint ut. */
+
+		function timer() {
+			if (check && tall1 >= 0 && lives > 0) {
+				sekund += 1;
+				tidPoeng -= 1;
+				if (minutt == 59 && sekund == 59) {
+					time += 1;
+					minutt = 0;
+					sekund = 0;
+				};
+				if (sekund == 59) {
+					minutt += 1;
+					sekund = 0;
+				};
+				if (sekund < 10 && minutt < 10 && time < 10) {
+					tekst2.innerHTML = '0' + time + ':' + '0' + minutt + ':' + '0' + sekund;
+				}
+				else if (minutt < 10 && time < 10) {
+					tekst2.innerHTML = '0' + time + ':' + '0' + minutt + ':' + sekund;
+				}
+				else if (sekund < 10 && time < 10) {
+					tekst2.innerHTML = '0' + time + ':' + minutt + ':' + '0' + sekund;
+				}
+				else if (sekund < 10 && minutt < 10) {
+					tekst2.innerHTML = time + ':' + '0' + minutt + ':' + '0' + sekund;
+				}
+				else if (sekund < 10) {
+					tekst2.innerHTML = time + ':' + minutt + ':' + '0' + sekund;
+				}
+				else if (minutt < 10) {
+					tekst2.innerHTML = time + ':' + '0' + minutt + ':' + sekund;
+				}
+				else if (time < 10) {
+					tekst2.innerHTML = '0' + time + ':' + minutt + ':' + sekund;
+				}
+			}
+		}
+
+		/* En funksjon for livene til pacman, den endrer canavasen i høyre gjørne (canvas2). */
+
+		function life() {
+			ctx2.fillStyle = 'black';
+			ctx2.fillRect(0,0,395,200);
+			for (i = 0; i < lives; i++) {
+				ctx2.strokeStyle = 'white';
+				ctx2.lineWidth = 2;
+				ctx2.strokeRect(110,115,150,60);
+				ctx2.fillStyle = 'yellow';
+				ctx2.beginPath();
+				ctx2.arc(i*50+138,145, radius, 0.75 * Math.PI, 1.75 * Math.PI);
+				ctx2.fill();
+				ctx2.beginPath();
+				ctx2.arc(i*50+138,145, radius, 0.25 * Math.PI, 1.25 * Math.PI);
+				ctx2.fill();
+			}x
+		}
+
+		/* Denne funskjonen dekker canvas2 i en svart firekant under end screenen slik at livene til pacman ikke vises lenger. */
+
+		function background0() {
+			ctx2.fillStyle = 'black';
+			ctx2.fillRect(0,0,395,200);
+		}
+
+		/* Denne funkskjonen skjer når du enten har mistet alle livene dine eller klart alle banenen. Her kommer det opp en skjerm som viser scoren din og hvor alle poengene kommer fra (tid, antall ghosts drept, antall liv du har igjen og poengene du har samlet). Den viser også de 5 beste highscorene. i tillegg er det en knapp som hjelper dem med å starte spillet på nytt. Bruker localStorage for highscore (finner kilde i kildelisten). */
+
+		function endScreen() {
+			background0();
+			tekst1.innerHTML = '';
+			tekst2.innerHTML = '';
+			tekst3.innerHTML = '';
+			ctx.fillStyle = 'black';
+			ctx.fillRect(0,0,enhet*26,enhet*32);
+			ctx.font = '40px fantasy';
+			ctx.fillStyle = 'gray';
+			ctx.strokeStyle = 'white';
+			ctx.strokeRect(enhet*4,enhet*0.5,enhet*19,enhet*15.5);
+			ctx.fillText('Points collected: ' + tall3,enhet*5,enhet*2.7);
+			ctx.fillText('Points from ghosts: ' + ghostKills,enhet*5,enhet*8.7);
+			ctx.fillText('Points from lives: ' + lives*200,enhet*5,enhet*11.7);
+			ctx.fillText('Points from time: ' + tidPoeng,enhet*5,enhet*5.7);
+			ctx.fillStyle = 'white';
+			ctx.fillText('Total points: ' + Number(tall3 + tidPoeng + ghostKills + lives*200),enhet*5,enhet*14.7);
+			ctx.strokeRect(enhet*4,enhet*28.5,enhet*19,enhet*3);
+			ctx.font = '40px solid';
+			ctx.fillText('Press R to restart',enhet*7.9,enhet*30.5);
+			var score = Number(tall3 + tidPoeng + ghostKills + lives*200);
+			var highscore1 = localStorage.getItem('highscore1');
+			var highscore2 = localStorage.getItem('highscore2');
+			var highscore3 = localStorage.getItem('highscore3');
+			var highscore4 = localStorage.getItem('highscore4');
+			var highscore5 = localStorage.getItem('highscore5');
+			if (highscore1 !== null) {
+				if (score > highscore1) {
+					localStorage.setItem('highscore5',highscore4);
+					localStorage.setItem('highscore4',highscore3);
+					localStorage.setItem('highscore3',highscore2);
+					localStorage.setItem('highscore2',highscore1);
+					localStorage.setItem('highscore1',score);
+				}
+				else if (score > highscore2) {
+					localStorage.setItem('highscore5',highscore4);
+					localStorage.setItem('highscore4',highscore3);
+					localStorage.setItem('highscore3',highscore2);
+					localStorage.setItem('highscore2',score);
+				}
+				else if (score > highscore3) {
+					localStorage.setItem('highscore5',highscore4);
+					localStorage.setItem('highscore4',highscore3);
+					localStorage.setItem('highscore3',score);
+				}
+				else if (score > highscore4) {
+					localStorage.setItem('highscore5',highscore4);
+					localStorage.setItem('highscore4',score);
+				}
+				else if (score > highscore5) {
+					localStorage.setItem('highscore5',score);
+				}
+			}
+			else {
+				localStorage.setItem('highscore1',score);
+				localStorage.setItem('highscore2',0);
+				localStorage.setItem('highscore3',0);
+				localStorage.setItem('highscore4',0);
+				localStorage.setItem('highscore5',0);
+			}
+			highscore1 = localStorage.getItem('highscore1');
+			highscore2 = localStorage.getItem('highscore2');
+			highscore3 = localStorage.getItem('highscore3');
+			highscore4 = localStorage.getItem('highscore4');
+			highscore5 = localStorage.getItem('highscore5');
+			ctx.font = '40px monospace';
+			ctx.fillText('High scores',enhet*7.9,enhet*17.8);
+			ctx.font = '25px monospace';
+			ctx.fillText('First place ' + highscore1 + ' points',enhet*6,enhet*19.5);
+			ctx.fillText('Second place ' + highscore2 + ' points',enhet*6,enhet*21.5);
+			ctx.fillText('Third place ' + highscore3 + ' points',enhet*6,enhet*23.5);
+			ctx.fillText('Fourth place ' + highscore4 + ' points',enhet*6,enhet*25.5);
+			ctx.fillText('Fifth place ' + highscore5 + ' points',enhet*6,enhet*27.5);
+		}
+
+		/* Bruker randomArray før animasjonen slik at ghostene starter i tilfeldig posisjon. */
+
+		randomArray();
+
+		/* Funksjon som samler alle funksjonen som skal kjøre konstant i setInterval. */
+
+		function animation() {
+			if (lives > 0 && stage < stageArray.length) {
+				life();
+				backgrounds(stageArray[stage].bakgrunnX,stageArray[stage].bakgrunnY,stageArray[stage].color,stageArray[stage].ghostFenceX,stageArray[stage].ghostFenceY);
+				points(stageArray[stage].pointX,stageArray[stage].pointY);
+				if (stage < stageArray.length) {
+					pellets(stageArray[stage].pelletX,stageArray[stage].pelletY);	
+					pacman(stageArray[stage].cordinateX,stageArray[stage].cordinateY,stageArray[stage].turnType);
+					pacAnimation(0.02);
+					pacDeath();
+					ghost(objects,stageArray[stage].cordinateX,stageArray[stage].cordinateY,stageArray[stage].turnType);
+				}
+			}
+			else {
+				endScreen();
+				clearInterval(interval1);
+				clearInterval(interval2);
+			}		
+		}
+
+		/* Har 2 intervaler som kjører konstant, selve spillet kjører hvert hundredels sekund med timere kjører en gang i sekundet. */
+
+		var interval1 = setInterval(animation,10)
+		var interval2 = setInterval(timer,1000)
+
+		/* Kode for kontrollene, gjorde det slik at både WASD og piltastende fungere. Knappene endrer variablene tall4 og tall1 og gjør det slik at du kan trykke retningen før en turn og du vil gå i retningen du trakk hvis turnen lar deg. i tastene hvor pacman ser. Knappen R kan også brukes under end screenen for å refreshe spillet. */
+
+		window.addEventListener('keydown',function(event) {
+			if (event.defualtPrevented) {
+				return;
+			}
+			switch(event.code) {
+				case 'KeyS':
+				case 'ArrowDown':
+					if (check) {
+						tall4 = 3;
+						if (tall1 != 3 && tall1 != 1 && tall1 != 2) {
+							if (tall1 != 0) {
+								pacMunn3();
+							}
+							tall1 = 3;
+						}
+					break;
+					}
+				case 'KeyW':
+				case 'ArrowUp':
+					if (check) {
+						tall4 = 4;
+						if (tall1 != 4 && tall1 != 1 && tall1 != 2) {
+							if (tall1 != 0) {
+								pacMunn4();
+							}
+							tall1 = 4;
+						}
+					break;
+					}	
+				case 'KeyA':
+				case 'ArrowLeft':
+					if (check) {
+						tall4 = 2;
+						if (tall1 != 2 && tall1 != 3 && tall1 != 4) {
+							if (tall1 != 0) {
+								pacMunn2();
+							}
+							tall1 = 2;
+						}
+					break;	
+					}
+				case 'KeyD':
+				case 'ArrowRight':
+					if (check) {
+						tall4 = 1;
+						if (tall1 != 1 && tall1 != 3 && tall1 != 4) {
+							if (tall1 != 0) {
+								pacMunn1();
+							}
+							tall1 = 1;
+						}
+					break;	
+					}
+				case 'KeyR':
+					if (lives <= 0 || stage >= stageArray.length) {
+						location.reload();
+					}
+					break;		
+			}
+		})
+
+	</script>
+</body>
+</html>
